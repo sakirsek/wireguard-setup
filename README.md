@@ -29,7 +29,13 @@ This script installs, configures, and enables WireGuard VPN on an AWS EC2 instan
    sudo ./setup.sh
    ```
 
-4. **Copy and use the client configuration**:
+4. **Open the WireGuard port on AWS EC2 Security Group**:
+   - Go to **AWS Management Console** → **EC2** → **Security Groups**.
+   - Find the security group associated with your EC2 instance.
+   - Add an **inbound rule** to allow **UDP traffic on port 51820** (or the port you configured in the script).
+   - Set the source as **0.0.0.0/0** (or restrict it to your specific IPs).
+
+5. **Copy and use the client configuration**:
    - The script will generate a WireGuard configuration for the client and display it in the terminal.
    - Copy the configuration output and save it as `client.conf`.
    - Import `client.conf` into your WireGuard client to establish a connection.
@@ -43,3 +49,4 @@ Pull requests are welcome! Feel free to fork the repository and submit improveme
 ## 🛠️ Requirements
 - Ubuntu 20.04 / 22.04 (EC2)
 - Root access
+- **UDP port 51820 must be open in AWS Security Group**
