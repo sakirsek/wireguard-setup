@@ -16,7 +16,7 @@ This script installs, configures, and enables WireGuard VPN on an AWS EC2 instan
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/sakirsek/wireguard-setup.git
-   cd your-repo-name
+   cd wireguard-setup
    ```
 
 2. **Make the script executable**:
