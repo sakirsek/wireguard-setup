@@ -7,6 +7,7 @@ WG_INTERFACE="wg0"
 SERVER_IP="10.0.0.1/24"
 CLIENT_IP="10.0.0.2/32"
 WG_PORT=51820
+SOCKS_PORT=1080
 SERVER_CONFIG="/etc/wireguard/wg0.conf"
 
 # Automatically detect the network interface
@@ -20,7 +21,7 @@ echo "🚀 Starting WireGuard Setup on AWS EC2..."
 
 # 📝 Install Required Packages
 echo "📝 Installing required dependencies..."
-sudo apt update && sudo apt install -y wireguard iptables-persistent curl unzip net-tools
+sudo apt update && sudo apt install -y wireguard iptables-persistent curl unzip net-tools dante-server
 
 # 🔐 Create WireGuard Directory and Keys
 echo "🔐 Generating required keys for WireGuard..."
@@ -73,6 +74,26 @@ sudo netfilter-persistent save
 echo "🚀 Starting WireGuard..."
 sudo systemctl enable wg-quick@$WG_INTERFACE
 sudo systemctl start wg-quick@$WG_INTERFACE
+
+# 🔧 Configure SOCKS Proxy (Dante)
+echo "🔧 Configuring SOCKS proxy with Dante..."
+sudo bash -c "cat > /etc/danted.conf" <<EOF
+logoutput: syslog
+user.privileged: root
+user.unprivileged: nobody
+internal: 0.0.0.0 port = $SOCKS_PORT
+external: $NETWORK_INTERFACE
+socksmethod: username none
+client pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+}
+socks pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+}
+EOF
+
+sudo systemctl restart danted
+sudo systemctl enable danted
 
 # 🔐 Display Client Configuration in Terminal
 echo ""
