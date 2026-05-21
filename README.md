@@ -1,6 +1,6 @@
 # wireguard-setup
 
-Turn a fresh Ubuntu VPS into a WireGuard VPN endpoint with a single command, then manage peers with two small helper scripts.
+Turn a fresh Ubuntu VPS into a WireGuard VPN endpoint with a single command, then manage peers with small helper scripts (`add` / `list` / `remove`).
 
 ## What it does
 
@@ -14,19 +14,20 @@ Turn a fresh Ubuntu VPS into a WireGuard VPN endpoint with a single command, the
 
 ## Quick start
 
-On a fresh Ubuntu 22.04 / 24.04 VPS:
+On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS:
 
 ```bash
 git clone https://github.com/sakirsek/wireguard-setup.git
 cd wireguard-setup
-chmod +x setup.sh add-client.sh remove-client.sh
 sudo ./setup.sh
 ```
 
 That's it. The script:
 - Asks no questions and runs with sane defaults
 - Creates a peer named `client`
-- Prints the config file path and a QR code
+- Prints a QR code (for mobile) and dumps the raw config text (for desktop copy-paste)
+
+> If you downloaded a release ZIP instead of cloning, the executable bit may not be preserved. Run `chmod +x *.sh` first.
 
 You still need to allow **UDP 51820** in your cloud provider's firewall — see [Cloud firewall](#cloud-firewall) below.
 
@@ -153,7 +154,7 @@ Provider-specific notes:
 
 ## Requirements
 
-- Ubuntu 22.04 / 24.04 LTS (tested; Debian likely works but isn't verified)
+- Ubuntu 22.04 / 24.04 / 26.04 LTS (tested on EC2; Debian likely works but isn't verified)
 - Root access
 - UDP 51820 open in the cloud provider firewall
 
