@@ -9,8 +9,8 @@ Turn a fresh Ubuntu VPS into a WireGuard VPN endpoint with a single command, the
 - Enables IP forwarding persistently via a drop-in sysctl file
 - Wires `iptables` NAT / forward rules into wg-quick `PostUp` / `PostDown` — applied on service start, cleaned up on service stop
 - Enables and starts the systemd unit
-- Creates an initial client, writes its config to disk, and prints a **terminal QR code** so you can scan it straight into the mobile WireGuard app
-- Lets you add / remove peers later with `add-client.sh` / `remove-client.sh`, applied live without dropping existing connections
+- Creates an initial client, writes its config to disk, prints a **terminal QR code** for mobile import, and dumps the raw config text for copy-paste on desktop
+- Lets you add / list / remove peers later with `add-client.sh` / `list-clients.sh` / `remove-client.sh`, applied live without dropping existing connections
 
 ## Quick start
 
@@ -64,26 +64,42 @@ sudo ./setup.sh --no-client
 sudo ./add-client.sh phone
 ```
 
-## Adding and removing clients
+## Managing clients
 
 ```bash
-# Add (applied live; existing peers stay connected)
+# Add a peer (applied live; existing peers stay connected)
 sudo ./add-client.sh phone
 sudo ./add-client.sh laptop
 
-# List active peers and last handshake times
-sudo wg show
+# List all peers with their names, IPs, last handshake, transfer
+sudo ./list-clients.sh
 
-# Remove
+# Print one client's config + QR code (for re-importing later)
+sudo ./list-clients.sh phone
+
+# Remove a peer
 sudo ./remove-client.sh phone
+```
+
+`wg show` only knows public keys; `list-clients.sh` joins them with the friendly names stored in the server config and emits a readable table:
+
+```
+interface: wg0  (endpoint: 1.2.3.4:51820, server key: PIfCI5Bzpd9...)
+
+NAME                  IPv4             HANDSHAKE        TRANSFER (rx/tx)
+--------------------  ---------------  ---------------  --------------------
+client                10.66.66.2       2m ago           12.3MB / 4.1MB
+phone                 10.66.66.3       never            0B / 0B
+laptop                10.66.66.4       1h ago           456MB / 89MB
 ```
 
 Each `add-client.sh` run:
 1. Writes `/etc/wireguard/clients/<name>.conf` (mode `600`)
-2. Prints an ANSI QR code — scan it with the mobile WireGuard app to import the tunnel
-3. Reloads the interface with `wg syncconf`, so other peers stay connected
+2. Prints an ANSI QR code for the mobile WireGuard app
+3. Dumps the raw config text to the terminal — copy-paste straight into your desktop client, no `scp` needed
+4. Reloads the interface with `wg syncconf`, so other peers stay connected
 
-For desktop clients, copy the config file over SSH:
+If you want the file on disk, `scp` it directly:
 
 ```bash
 scp <user>@<server>:/etc/wireguard/clients/<name>.conf .

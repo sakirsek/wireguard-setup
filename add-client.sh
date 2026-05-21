@@ -180,6 +180,10 @@ echo "QR code (scan with the WireGuard mobile app):"
 echo
 qrencode -t ansiutf8 < "$CLIENT_CONF"
 echo
-printf "${C_DIM}Fetch the config file for desktop:${C_RST}\n"
+printf "${C_DIM}─── config (copy into your WireGuard client) ───${C_RST}\n"
+cat "$CLIENT_CONF"
+printf "${C_DIM}────────────────────────────────────────────────${C_RST}\n"
+echo
+printf "${C_DIM}Or download the file:${C_RST}\n"
 printf "  scp <user>@%s:%s .\n" "$SERVER_PUBLIC_ENDPOINT" "$CLIENT_CONF"
 echo
