@@ -64,8 +64,9 @@ Examples:
 
 After setup:
   - Allow UDP \$port inbound on your cloud provider firewall
-  - Add more clients with: sudo ./add-client.sh <name>
-  - Remove clients with:   sudo ./remove-client.sh <name>
+  - Manage peers with: sudo wg-add-client / wg-list-clients / wg-remove-client
+    (these symlinks are installed into /usr/local/sbin automatically unless
+    the repo lives in /tmp or /var/tmp)
 EOF
 }
 
@@ -250,20 +251,58 @@ if ! systemctl is-active --quiet "wg-quick@${WG_INTERFACE}"; then
 fi
 ok "wg-quick@${WG_INTERFACE} is active"
 
+# ---------- Install helper commands ----------
+# Symlink the peer helpers into /usr/local/sbin so they're callable as
+# `wg-add-client` / `wg-list-clients` / `wg-remove-client` from anywhere.
+# Skipped if the repo lives in a volatile location (/tmp, /var/tmp) since
+# the symlink targets would disappear on reboot.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HELPERS_INSTALLED=false
+case "$SCRIPT_DIR" in
+    /tmp/*|/var/tmp/*)
+        warn "Repo is in $SCRIPT_DIR (volatile); skipping wg-* helper command install."
+        warn "Move the repo to a stable path (e.g. /opt/wireguard-setup) and re-run setup.sh to install them."
+        ;;
+    *)
+        installed=()
+        for cmd in add-client list-clients remove-client; do
+            src="$SCRIPT_DIR/${cmd}.sh"
+            link="/usr/local/sbin/wg-${cmd}"
+            if [[ -x "$src" ]]; then
+                ln -sf "$src" "$link"
+                installed+=("wg-${cmd}")
+            fi
+        done
+        if (( ${#installed[@]} > 0 )); then
+            ok "Helper commands installed in /usr/local/sbin: ${installed[*]}"
+            HELPERS_INSTALLED=true
+        fi
+        ;;
+esac
+
 # ---------- Create initial client ----------
 if [[ "$NO_CLIENT" != true ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [[ -x "$SCRIPT_DIR/add-client.sh" ]]; then
         echo
         log "Creating initial client: $INITIAL_CLIENT"
         "$SCRIPT_DIR/add-client.sh" "$INITIAL_CLIENT"
     else
         warn "add-client.sh not found or not executable — initial client skipped."
-        warn "Add one manually: sudo ./add-client.sh <name>"
+        warn "Add one manually: sudo $SCRIPT_DIR/add-client.sh <name>"
     fi
 fi
 
 # ---------- Done ----------
+if [[ "$HELPERS_INSTALLED" == true ]]; then
+    CMD_LIST="sudo wg-list-clients"
+    CMD_ADD="sudo wg-add-client <name>"
+    CMD_REMOVE="sudo wg-remove-client <name>"
+else
+    CMD_LIST="sudo $SCRIPT_DIR/list-clients.sh"
+    CMD_ADD="sudo $SCRIPT_DIR/add-client.sh <name>"
+    CMD_REMOVE="sudo $SCRIPT_DIR/remove-client.sh <name>"
+fi
+
 cat <<EOF
 
 $(printf "${C_GRN}========================================${C_RST}")
@@ -272,9 +311,9 @@ $(printf "${C_GRN}========================================${C_RST}")
 
 $(printf "${C_DIM}Next steps:${C_RST}")
   - Open UDP ${WG_PORT} on your cloud provider firewall (security group / firewall rules)
-  - Add a client:     ${C_BLU}sudo ./add-client.sh <name>${C_RST}
-  - Remove a client:  ${C_BLU}sudo ./remove-client.sh <name>${C_RST}
+  - List clients:     ${C_BLU}${CMD_LIST}${C_RST}
+  - Add a client:     ${C_BLU}${CMD_ADD}${C_RST}
+  - Remove a client:  ${C_BLU}${CMD_REMOVE}${C_RST}
   - Service status:   ${C_BLU}systemctl status wg-quick@${WG_INTERFACE}${C_RST}
-  - Active peers:     ${C_BLU}sudo wg show${C_RST}
 
 EOF

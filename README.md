@@ -10,17 +10,20 @@ Turn a fresh Ubuntu VPS into a WireGuard VPN endpoint with a single command, the
 - Wires `iptables` NAT / forward rules into wg-quick `PostUp` / `PostDown` — applied on service start, cleaned up on service stop
 - Enables and starts the systemd unit
 - Creates an initial client, writes its config to disk, prints a **terminal QR code** for mobile import, and dumps the raw config text for copy-paste on desktop
-- Lets you add / list / remove peers later with `add-client.sh` / `list-clients.sh` / `remove-client.sh`, applied live without dropping existing connections
+- Installs three helper commands into `/usr/local/sbin` — `wg-add-client`, `wg-list-clients`, `wg-remove-client` — so peer management is callable from anywhere, not just the cloned directory
+- Lets you add / list / remove peers later, applied live without dropping existing connections
 
 ## Quick start
 
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS:
 
 ```bash
-git clone https://github.com/sakirsek/wireguard-setup.git
-cd wireguard-setup
+sudo git clone https://github.com/sakirsek/wireguard-setup.git /opt/wireguard-setup
+cd /opt/wireguard-setup
 sudo ./setup.sh
 ```
+
+Cloning into `/opt` keeps the repo (and the helper symlinks setup.sh installs) at a stable path that survives reboots. You can clone anywhere stable — `~/`, `/srv/`, etc. — just not `/tmp`.
 
 That's it. The script:
 - Asks no questions and runs with sane defaults
@@ -62,27 +65,31 @@ sudo ./setup.sh --with-psk
 
 # Set up the server but add clients later
 sudo ./setup.sh --no-client
-sudo ./add-client.sh phone
+sudo wg-add-client phone
 ```
 
 ## Managing clients
 
+`setup.sh` installs three helper commands into `/usr/local/sbin`, so once setup completes you can manage peers from anywhere on the server:
+
 ```bash
 # Add a peer (applied live; existing peers stay connected)
-sudo ./add-client.sh phone
-sudo ./add-client.sh laptop
+sudo wg-add-client phone
+sudo wg-add-client laptop
 
 # List all peers with their names, IPs, last handshake, transfer
-sudo ./list-clients.sh
+sudo wg-list-clients
 
 # Print one client's config + QR code (for re-importing later)
-sudo ./list-clients.sh phone
+sudo wg-list-clients phone
 
 # Remove a peer
-sudo ./remove-client.sh phone
+sudo wg-remove-client phone
 ```
 
-`wg show` only knows public keys; `list-clients.sh` joins them with the friendly names stored in the server config and emits a readable table:
+The helpers are symlinks back to the scripts in the repo, so `git pull` is enough to update them. If you'd rather call the scripts directly (`sudo ./add-client.sh phone` etc.), that still works the same way.
+
+`wg show` only knows public keys; `wg-list-clients` joins them with the friendly names stored in the server config and emits a readable table:
 
 ```
 interface: wg0  (endpoint: 1.2.3.4:51820, server key: PIfCI5Bzpd9...)
@@ -94,7 +101,7 @@ phone                 10.66.66.3       never            0B / 0B
 laptop                10.66.66.4       1h ago           456MB / 89MB
 ```
 
-Each `add-client.sh` run:
+Each `wg-add-client` run:
 1. Writes `/etc/wireguard/clients/<name>.conf` (mode `600`)
 2. Prints an ANSI QR code for the mobile WireGuard app
 3. Dumps the raw config text to the terminal — copy-paste straight into your desktop client, no `scp` needed
@@ -129,7 +136,8 @@ Provider-specific notes:
 | `wg show` is empty | `systemctl status wg-quick@wg0`, then restart |
 | Client connects but has no internet | Confirm UDP port is open in the cloud firewall; verify `sysctl net.ipv4.ip_forward` returns `1` |
 | Wrong public IP detected | `sudo ./setup.sh --endpoint <correct-ip-or-host> --force` |
-| Want to rotate a client's keys | `sudo ./remove-client.sh <name> && sudo ./add-client.sh <name>` |
+| Want to rotate a client's keys | `sudo wg-remove-client <name> && sudo wg-add-client <name>` |
+| `wg-add-client: command not found` | The repo lives in `/tmp` — setup.sh skips installing the helpers from volatile paths. Move the repo to `/opt` and re-run `sudo ./setup.sh --force`, or invoke the scripts directly with `sudo ./add-client.sh <name>`. |
 
 ## File layout
 
@@ -143,6 +151,11 @@ Provider-specific notes:
     ├── client.conf         # mode 600, root
     ├── laptop.conf
     └── phone.conf
+
+/usr/local/sbin/
+├── wg-add-client       -> /opt/wireguard-setup/add-client.sh
+├── wg-list-clients     -> /opt/wireguard-setup/list-clients.sh
+└── wg-remove-client    -> /opt/wireguard-setup/remove-client.sh
 ```
 
 ## Security notes
